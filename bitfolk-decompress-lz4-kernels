@@ -1,0 +1,67 @@
+#!/bin/sh
+
+# Copyright 2020 Andy Smith <andy@bitfolk.com>
+# Distributed to you under the terms of the GPLv2.
+
+# Put this file in the /etc/kernel/postinst.d/ directory and if necessary
+# reinstall your existing kernel with something like:
+#
+# $ sudo apt reinstall linux-image-5.4.0-29-generic
+
+# This is a BitFolk-specific customisation. It automatically decompresses
+# LZ4-compressed kernel images on install. This is needed because (at the time
+# of writing) BitFolk's boot process can't cope with LZ4 compression. See:
+#
+#   https://tools.bitfolk.com/wiki/Ubuntu
+#
+# for more information.
+#
+# If you ordered a VM brand new or installed it from BitFolk's Xen Shell then
+# this script will have been placed on your system automatically as part of the
+# install process. You can find the canonical version of it at:
+#
+#   https://github.com/bitfolk/decompress-lz4-kernels
+
+KERNEL_PATH="$2"
+
+# We need extract-linux, lz4 and readelf.
+if ! command -v /usr/local/sbin/extract-vmlinux >/dev/null; then
+	echo >&2 "Command '/usr/local/sbin/extract-vmlinux' is not available (https://raw.githubusercontent.com/torvalds/linux/master/scripts/extract-vmlinux); aborting."
+	exit 1
+fi
+
+if ! command -v lz4 >/dev/null; then
+	echo >&2 "lz4 binary is reuqired. Install the lz4 package. Aborting."
+	exit 1
+fi
+
+if ! command -v readelf >/dev/null; then
+	echo >&2 "readelf binary is required. Install the binutils package. Aborting."
+	exit 1
+fi
+
+if [ ! -f "$KERNEL_PATH" ]; then
+	echo >&2 "Kernel image $KERNEL_PATH not found. Aborting."
+	exit 1
+fi
+
+lz4pattern=$(printf '\002!L\030')
+if grep -aq "$lz4pattern" "$KERNEL_PATH"; then
+	echo "LZ4-compressed kernel $KERNEL_PATH found; decompressing..."
+	echo "(This is a BitFolk-specific customisation. Please see https://tools.bitfolk.com/wiki/Ubuntu for more information.)"
+	ktmp=$(mktemp /var/tmp/decompress-lz4-XXXX)
+	trap 'rm -f $ktmp' 0
+	if /usr/local/sbin/extract-vmlinux "$KERNEL_PATH" > "$ktmp"; then
+		if ! readelf -h "$ktmp" >/dev/null; then
+			echo >&2 "Decompressed $KERNEL_IMAGE but didn't end up with a valid image. Aborting."
+			exit 1
+		fi
+		echo "Successfully decompressed $KERNEL_PATH."
+		mv "$ktmp" "$KERNEL_PATH"
+	else
+		echo >&2 "Failed to decompress $KERNEL_PATH. Aborting."
+		exit 1
+	fi
+else
+	echo "Kernel image $KERNEL_PATH doesn't appear to be LZ4-compressed so leaving it alone."
+fi
