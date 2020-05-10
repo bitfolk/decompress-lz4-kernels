@@ -24,7 +24,7 @@
 
 KERNEL_PATH="$2"
 
-# We need extract-linux, lz4 and readelf.
+# We need extract-vmlinux, lz4 and readelf.
 if ! command -v /usr/local/sbin/extract-vmlinux >/dev/null; then
 	echo >&2 "Command '/usr/local/sbin/extract-vmlinux' is not available (https://raw.githubusercontent.com/torvalds/linux/master/scripts/extract-vmlinux); aborting."
 	exit 1
