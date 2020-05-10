@@ -31,7 +31,7 @@ if ! command -v /usr/local/sbin/extract-vmlinux >/dev/null; then
 fi
 
 if ! command -v lz4 >/dev/null; then
-	echo >&2 "lz4 binary is reuqired. Install the lz4 package. Aborting."
+	echo >&2 "lz4 binary is required. Install the lz4 package. Aborting."
 	exit 1
 fi
 
